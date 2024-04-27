@@ -35,7 +35,7 @@ void parallelDFShelper(int vertex, vector<bool>&visited, vector<vector<int>>&adj
     visited[vertex] = true;
     cout<<vertex<<" ";
 
-    #pragma op parallel for 
+    #pragma omp parallel for 
     for(int i=0; i<adj[vertex].size();i++)
     {
         int current = adj[vertex][i];
