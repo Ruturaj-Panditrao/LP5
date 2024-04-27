@@ -1,0 +1,139 @@
+# Note that %%cu is required only for Jupyter Notebooks/Google Colabs
+# If you are running the code as a .cu file, you do not need this declaration.
+# It basically represents the start of the CUDA code
+
+# To understand the code effectively, start from the Main function
+
+%%cu
+
+#include <iostream>
+using namespace std;
+
+__global__ void add(int* A, int* B, int* C, int size) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // blockIdx.x = Index of Current Block within the Grid
+    // threadIdx.x = Index of Current Thread within each Block
+    // blockDim.x = Number of threads per block
+
+    // We are basically trying to assign a unique index (thread id or tid) to each thread for processing
+
+    if (tid < size) {
+        C[tid] = A[tid] + B[tid];
+    }
+
+    // If the thread assigned index is within the array bounds, let the thread perform addition
+}
+
+void addCPU(int* A, int*B, int*C, int N)
+{
+    for(int i=0; i<N; i++)
+    {
+        C[i]=A[i]+B[i];
+    }
+}
+
+void initialize(int* vector, int size) {
+    for (int i = 0; i < size; i++) {
+        vector[i] = rand() % 10;
+    }
+}
+
+void print(int* vector, int size) {
+    for (int i = 0; i < size; i++) {
+        cout << vector[i] << " ";
+    }
+    cout << endl;
+}
+
+int main() {
+    int N = 10;
+    // To actually see the difference in CPU and GPU time, set N as 100000, but beware of printing the arrays then :)
+    // Number of Elements in Each Vector
+
+    int* A = new int[N];
+    int* B = new int[N];
+    int* C = new int[N];
+    int* D = new int[N];
+    // A,B,C,D are allocated memory on the Host (CPU)
+    // We will use C for the result of addition on GPU
+    // We will use D for the result of addition on CPU
+
+    size_t vectorBytes = N * sizeof(int);
+    // Finding the memory size of vector
+
+    initialize(A, N);
+    initialize(B, N);
+    // Initialize A and B vectors with Random Values
+
+    cout << "Vector A: ";
+    print(A, N);
+    cout << "Vector B: ";
+    print(B, N);
+
+    int* X, * Y, * Z;
+    // X,Y,Z are allocated memory on the Device (GPU)
+    cudaMalloc(&X, vectorBytes);
+    cudaMalloc(&Y, vectorBytes);
+    cudaMalloc(&Z, vectorBytes);
+
+    cudaMemcpy(X, A, vectorBytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(Y, B, vectorBytes, cudaMemcpyHostToDevice);
+
+    int threadsPerBlock = 256;
+    // This is dependent on the GPU architecture
+
+    int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
+
+    float gpu_elapsed_time;
+    cudaEvent_t gpu_start,gpu_stop;
+    cudaEventCreate(&gpu_start);
+    cudaEventCreate(&gpu_stop);
+    cudaEventRecord(gpu_start);
+
+    add<<<blocksPerGrid, threadsPerBlock>>>(X, Y, Z, N);
+
+    cudaEventRecord(gpu_stop);
+    cudaEventSynchronize(gpu_stop);
+    cudaEventElapsedTime(&gpu_elapsed_time, gpu_start, gpu_stop);
+    cudaEventDestroy(gpu_start);
+    cudaEventDestroy(gpu_stop);
+
+
+    cudaMemcpy(C, Z, vectorBytes, cudaMemcpyDeviceToHost);
+
+    cout<<"GPU Elapsed time is: "<<gpu_elapsed_time<<" milliseconds"<<endl;
+
+    cout << "Addition: ";
+    print(C, N);
+
+    float cpu_elapsed_time;
+    cudaEvent_t cpu_start,cpu_stop;
+    cudaEventCreate(&cpu_start);
+    cudaEventCreate(&cpu_stop);
+    cudaEventRecord(cpu_start);
+
+    addCPU(A,B,D,N);
+
+    cudaEventRecord(cpu_stop);
+    cudaEventSynchronize(cpu_stop);
+    cudaEventElapsedTime(&cpu_elapsed_time, cpu_start, cpu_stop);
+    cudaEventDestroy(cpu_start);
+    cudaEventDestroy(cpu_stop);
+
+    cout<<"CPU Elapsed time is: "<<cpu_elapsed_time<<" milliseconds"<<endl;
+
+    cout << "Addition: ";
+    print(D, N);
+
+    delete[] A;
+    delete[] B;
+    delete[] C;
+    delete[] D;
+
+    cudaFree(X);
+    cudaFree(Y);
+    cudaFree(Z);
+
+    return 0;
+}
