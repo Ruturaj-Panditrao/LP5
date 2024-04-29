@@ -1,5 +1,5 @@
 # LP V
-This Repository contains solutions to all LP5 Assignments :                                                 
+This Repository contains solutions to LP5 Assignments :                                                 
 🎯📒Deep Learning(DL)                                
 🎯📘High Performance Computing(HPC)             
                           
